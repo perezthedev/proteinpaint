@@ -71,6 +71,7 @@ export function validate_variant2samples(ds) {
 			// this file has samples
 			hasSamples = true
 		}
+		if (ds.queries?.snvindel?.byisoform?.textfile) hasSamples = true
 		if (ds.queries?.svfusion?.byrange?.samples) {
 			hasSamples = true
 		}
@@ -281,11 +282,23 @@ async function queryServerFileBySsmid(q, twLst, ds) {
 		const l = ssmid.split(ssmIdFieldsSeparator)
 
 		if (l.length == 4) {
-			if (!ds.queries.snvindel || !ds.queries.snvindel.byrange)
-				throw 'queries.snvindel.byrange missing when id has 4 fields'
+			if (!ds.queries.snvindel) throw 'queries.snvindel missing when id looks like ssm'
 			const [chr, tmp, ref, alt] = l
 			const pos = Number(tmp)
 			if (Number.isNaN(pos)) throw 'no integer position for snvindel from ssm id'
+
+			if (ds.queries.snvindel.byisoform?.textfile) {
+				// allow to match using cached text file data
+				for (const mlst of ds.queries.snvindel.byisoform.gene2mlst.values()) {
+					for (const m of mlst) {
+						if (m.chr != chr || m.pos != pos || m.ref != ref || m.alt != alt) continue
+						combineSamplesById(m.samples, samples, m.ssm_id)
+					}
+				}
+				continue
+			}
+
+			if (!ds.queries.snvindel.byrange) throw 'queries.snvindel.byrange missing when id has 4 fields'
 
 			// new param with rglst as the variant position, also inherit q.tid2value if provided
 			const param = Object.assign({}, q, {

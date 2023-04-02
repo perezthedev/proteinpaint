@@ -6,13 +6,14 @@ const { validate_variant2samples } = require('./mds3.variant2samples')
 const utils = require('./utils')
 const compute_mclass = require('./vcf.mclass').compute_mclass
 const serverconfig = require('./serverconfig')
-const { dtsnvindel, dtfusionrna, dtsv, mclassfusionrna, mclasssv } = require('#shared/common')
+const { mclass, dtsnvindel, dtfusionrna, dtsv, mclassfusionrna, mclasssv } = require('#shared/common')
 const { get_samples, server_init_db_queries } = require('./termdb.sql')
 const { barchart_data } = require('./termdb.barchart')
 const { setDbRefreshRoute } = require('./dsUpdateAttr.js')
 const mayInitiateScatterplots = require('./termdb.scatter').mayInitiateScatterplots
 const mayInitiateMatrixplots = require('./termdb.matrix').mayInitiateMatrixplots
 const { add_bcf_variant_filter } = require('./termdb.snp')
+const bulkSnv = require('#shared/bulk.snv')
 
 /*
 ********************** EXPORTED
@@ -510,6 +511,8 @@ async function validate_query_snvindel(ds, genome) {
 		if (q.byisoform.gdcapi) {
 			gdc.validate_query_snvindel_byisoform(ds)
 			// q.byisoform.get() added
+		} else if (q.byisoform.textfile) {
+			validate_query_snvindel_byisoform_textfile(ds)
 		} else {
 			throw 'unknown query method for queries.snvindel.byisoform'
 		}
@@ -1511,5 +1514,78 @@ function getAssayAvailablility(ds, dt) {
 		if (dt.yes.value.includes(r.value)) dt.yesSamples.add(r.sample)
 		else if (dt.no.value.includes(r.value)) dt.noSamples.add(r.sample)
 		//else throw `value of term ${dt.term_id} is invalid`
+	}
+}
+
+async function validate_query_snvindel_byisoform_textfile(ds) {
+	const q = ds.queries.snvindel.byisoform
+
+	q.gene2mlst = new Map()
+	// k: gene name in all cap
+	// v: array of m objects
+
+	// can support multiple text files
+	{
+		const lines = (await utils.read_file(path.join(serverconfig.tpmasterdir, q.textfile))).trim().split('\n')
+		const flag = {
+			data: {},
+			mclasslabel2key: {},
+			geneToUpper: true,
+			patient2st: {},
+			snv: { badlines: [] }
+		}
+		for (const k in mclass) {
+			flag.mclasslabel2key[mclass[k].label.toUpperCase()] = k
+		}
+
+		bulkSnv.parseheader(lines[0], flag)
+		for (let i = 1; i < lines.length; i++) {
+			bulkSnv.parseline(i, lines[i], flag)
+		}
+		const _sampleSet = new Set()
+		for (const geneName in flag.data) {
+			if (!q.gene2mlst.has(geneName)) q.gene2mlst.set(geneName, [])
+			for (const m of flag.data[geneName]) {
+				if (!m.sample) continue
+				m.ssm_id = m.chr + '.' + m.pos + '.' + m.ref + '.' + m.alt
+				if (ds.cohort?.termdb?.q?.sampleName2id) {
+					const id = ds.cohort.termdb.q.sampleName2id(m.sample)
+					if (id == undefined) {
+						console.log('unknown sample from snvindel text file:', m.sample)
+						continue
+					}
+					m.samples = [{ sample_id: id }]
+				} else {
+					m.samples = [{ sample_id: m.sample }]
+				}
+				delete m.sample
+				delete m.sampletype
+				_sampleSet.add(m.samples[0].sample_id)
+				q.gene2mlst.get(geneName).push(m)
+			}
+		}
+		console.log(_sampleSet.size, `samples from ${ds.label} snvindel text file`, q.textfile)
+	}
+	/*
+	param{}
+		.gene:str
+			required
+		.isoform:str
+			optional, will provide if from mds3 track in protein mode, using only one isoform
+			will not be provided if from matrix 
+		.filterObj{}
+		.hiddenmclass = set
+	*/
+	q.get = async param => {
+		if (!param.gene) throw '.gene missing'
+		if (typeof param.gene != 'string') throw '.gene value is not string'
+		const mlst = q.gene2mlst.get(param.gene.toUpperCase()) || []
+		const mlst2 = [] // filtered list from mlst
+		for (const m of mlst) {
+			if (param.isoform && m.isoform != param.isoform) continue
+			if (param.hiddenmclass && param.hiddenmclass.has(m.class)) continue
+			mlst2.push(JSON.parse(JSON.stringify(m))) // must duplicate
+		}
+		return mlst2
 	}
 }

@@ -511,9 +511,8 @@ function mayaddGetter_variant2samples(tk, block) {
 				throw 'unknown variantkey for variant2samples'
 			}
 		}
-		if (arg.isoform) {
-			par.isoform = arg.isoform
-		}
+		if (arg.isoform) par.isoform = arg.isoform
+		if (arg.gene) par.gene = arg.gene
 		if (arg.rglst) {
 			par.rglst = arg.rglst
 		}
