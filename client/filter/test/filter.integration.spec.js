@@ -66,7 +66,7 @@ async function addDemographicSexFilter(opts, btn) {
 	const demoPill = termdiv1.find(elem => elem.__data__.id === 'Demographic Variables')
 	demoPill.querySelectorAll('.termbtn')[0].click()
 
-	const termdivSex = await detectLst({ elem: tipd, selector: '.termdiv', count: 6, matchAs: '>=' })
+	const termdivSex = await detectLst({ elem: demoPill, selector: '.termdiv', matchAs: '>=' })
 	const sexPill = termdivSex.find(elem => elem.__data__.id === 'sex')
 	sexPill.querySelectorAll('.termlabel')[0].click()
 
