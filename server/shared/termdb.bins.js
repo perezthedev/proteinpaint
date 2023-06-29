@@ -1,4 +1,5 @@
 import { format } from 'd3-format'
+import { extent } from 'd3-array'
 import { getColors } from '#shared/common'
 import { isNumeric } from './helpers'
 
@@ -107,22 +108,22 @@ export function compute_bins(binconfig, summaryfxn) {
 	/*
   Bins generator
   
-binconfig   
-  configuration of bins per the Numerical Binning Scheme
-  https://docs.google.com/document/d/18Qh52MOnwIRXrcqYR43hB9ezv203y_CtJIjRgDcI42I/edit#heading=h.arwagpbhlgr3
+	binconfig   
+	  configuration of bins per the Numerical Binning Scheme
+	  https://docs.google.com/document/d/18Qh52MOnwIRXrcqYR43hB9ezv203y_CtJIjRgDcI42I/edit#heading=h.arwagpbhlgr3
 
-summaryfxn (percentiles)=> return {min, max, pX, pY, ...}
-  - required function
+	summaryfxn (percentiles)=> return {min, max, pX, pY, ...}
+	  - required function
 
-  - must accept an array of desired percentile values
-  and returns an object of computed properties
-  {
-    min: minimum value
-    max: maximum value
-    pX: percentile at X value, so p10 will be 10th percentile value
-    pY: .. corresponding to the desired percentile values 
-  }
-*/
+	  - must accept an array of desired percentile values
+	  and returns an object of computed properties
+	  {
+	    min: minimum value
+	    max: maximum value
+	    pX: percentile at X value, so p10 will be 10th percentile value
+	    pY: .. corresponding to the desired percentile values 
+	  }
+	*/
 	const bc = binconfig
 	validate_bins(bc)
 	if (bc.lst) {
@@ -320,6 +321,50 @@ export function get_bin_label(bin, binconfig) {
 			return oper + v0
 		} else {
 			return oper0 + v0 + ' to ' + oper1 + v1
+		}
+	}
+}
+
+/*
+	Arguments
+	bc: binconfig
+
+	Returns
+	a function that returns a bin label, given a numeric value
+	NOTE: this is different from get_bin_label which returns a string label and not a labeler function
+*/
+export function getBinLabeler(bc, values) {
+	validate_bins(bc)
+	if (bc.type == 'custom-bin') {
+		for (const b of bc.bins) {
+			if (!b.label) b.label = get_bin_label(b, bc)
+		}
+
+		return value => {
+			for (const b of bc.bins) {
+				if (b.startunbounded && b.stop > value) return b.label
+				if (b.stopunbounded && b.start < value) return b.label
+				if (b.startinclusive && b.start === value) return b.label
+				if (b.stopinclusive && b.stop === b.value) return b.label
+				if (b.start < value && value < b.stop) return b.label
+			}
+		}
+	} else {
+		const [min, max] = extent(values)
+		const bins = compute_bins(bc, percentiles => ({
+			min,
+			max
+		}))
+
+		if (!bc.binLabelFormatter) bc.binLabelFormatter = getNumDecimalsFormatter(bc)
+		return value => {
+			for (const b of bins) {
+				if (b.startunbounded && b.stop > value) return b.label
+				if (b.stopunbounded && b.start < value) return b.label
+				if (b.startinclusive && b.start === value) return b.label
+				if (b.stopinclusive && b.stop === b.value) return b.label
+				if (b.start < value && value < b.stop) return b.label
+			}
 		}
 	}
 }

@@ -3,6 +3,8 @@ const got = require('got')
 const path = require('path')
 const { get_crosstabCombinations, combineSamplesById } = require('./mds3.variant2samples')
 const filter2GDCfilter = require('./mds3.gdc.filter').filter2GDCfilter
+const { getBinLabeler } = require('#shared/termdb.bins')
+const initBinConfig = require('#shared/termdb.initbinconfig')
 
 /*
 GDC API
@@ -1051,8 +1053,7 @@ function flattenCaseByFields(sample, caseObj, tw) {
 			const v = mayApplyGroupsetting(sample[tw.term.id], tw)
 			if (v) sample[tw.term.id] = v
 		} else if (tw.term.type == 'integer' || tw.term.type == 'float') {
-			const v = mayApplyBinning(sample[tw.term.id], tw)
-			if (v) sample[tw.term.id] = v
+			maySetBinValues(sample[tw.term.id], tw)
 		}
 	}
 
@@ -1134,8 +1135,9 @@ function mayApplyGroupsetting(v, tw) {
 	}
 }
 
-function mayApplyBinning(v, tw) {
-	//TODO fill in method
+function maySetBinValues(v, tw) {
+	if (!tw.binValues) tw.binValues = []
+	tw.binValues.push(v)
 }
 
 function prepTwLst(lst) {
@@ -1386,6 +1388,18 @@ export async function querySamples_gdcapi(q, twLst, ds, geneTwLst) {
 		for (const h of cnvdata) {
 			for (const s of h.samples) {
 				samples.push(s)
+			}
+		}
+	}
+
+	for (const tw of dictTwLst) {
+		if ((tw.term.type == 'integer' || tw.term.type == 'float') && tw.q.mode == 'discrete') {
+			tw.q = initBinConfig(tw.binValues)
+			tw.binLabeler = getBinLabeler(tw.q, tw.binValues)
+			for (const sample of samples) {
+				if (tw.term.id in sample) {
+					sample[tw.term.id] = tw.binLabeler(sample[tw.term.id])
+				}
 			}
 		}
 	}
