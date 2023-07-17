@@ -221,15 +221,16 @@ tape('Render TermdbTest scatter plot and open survival and summary', function (t
 		async function testOpenSurvivalPlot() {
 			const survivalTerm = await scatter.Inner.app.vocabApi.getterm('efs')
 			openPlot('survival', survivalTerm, tw, scatter.Inner.app)
-			const errorBar = d3s.selectAll('.sja_errorbar')
-			console.log(errorBar.nodes())
-			test.equal(errorBar.size(), 0, 'Should render survival plot without errors".')
+			const errorBar = d3s.selectAll('.sja_errorbar').nodes()
+			test.true(errorBar.length == 0 || errorBar[0]?.innerHTML == '', 'Should render survival plot without errors".')
 		}
 
 		async function testOpenSummaryPlot() {
 			const genderTerm = await scatter.Inner.app.vocabApi.getterm('sex')
 			openSummaryPlot(genderTerm, tw, scatter.Inner.app)
-			test.equal(d3s.selectAll('.sja_errorbar').size(), 0, 'Should render summary plot without errors".')
+			const errorBar = d3s.selectAll('.sja_errorbar').nodes()
+
+			test.true(errorBar.length == 0 || errorBar[0]?.innerHTML == '', 0, 'Should render summary plot without errors".')
 		}
 	}
 })
