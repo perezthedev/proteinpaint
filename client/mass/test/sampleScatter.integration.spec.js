@@ -222,7 +222,7 @@ tape('Render TermdbTest scatter plot and open survival and summary', function (t
 			const survivalTerm = await scatter.Inner.app.vocabApi.getterm('efs')
 			openPlot('survival', survivalTerm, tw, scatter.Inner.app)
 			const errorBar = d3s.selectAll('.sja_errorbar')
-			console.log(errorBar)
+			console.log(errorBar.nodes())
 			test.equal(errorBar.size(), 0, 'Should render survival plot without errors".')
 		}
 
