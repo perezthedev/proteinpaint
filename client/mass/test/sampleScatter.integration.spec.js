@@ -149,7 +149,7 @@ tape('\n', function (test) {
 	test.end()
 })
 
-tape.only('Render TermdbTest scatter plot and open survival and summary', function (test) {
+tape('Render TermdbTest scatter plot and open survival and summary', function (test) {
 	test.timeoutAfter(800)
 	test.plan(4)
 	const holder = getHolder()
