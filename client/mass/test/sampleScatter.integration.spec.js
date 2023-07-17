@@ -164,6 +164,8 @@ tape('Render TermdbTest scatter plot and open survival and summary', function (t
 	})
 
 	async function runTests(scatter) {
+		scatter.on('postRender.test', null)
+
 		const scatterDiv = scatter.Inner.charts[0].chartDiv
 
 		testPlot()
@@ -218,16 +220,14 @@ tape('Render TermdbTest scatter plot and open survival and summary', function (t
 
 		async function testOpenSurvivalPlot() {
 			const survivalTerm = await scatter.Inner.app.vocabApi.getterm('efs')
-			console.log(survivalTerm)
 			openPlot('survival', survivalTerm, tw, scatter.Inner.app)
 			const errorBar = d3s.selectAll('.sja_errorbar')
-			console.log(errorBar._groups[0])
+			console.log(errorBar)
 			test.equal(errorBar.size(), 0, 'Should render survival plot without errors".')
 		}
 
 		async function testOpenSummaryPlot() {
 			const genderTerm = await scatter.Inner.app.vocabApi.getterm('sex')
-			console.log(genderTerm)
 			openSummaryPlot(genderTerm, tw, scatter.Inner.app)
 			test.equal(d3s.selectAll('.sja_errorbar').size(), 0, 'Should render summary plot without errors".')
 		}
