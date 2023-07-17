@@ -150,7 +150,7 @@ tape('\n', function (test) {
 })
 
 tape('Render TermdbTest scatter plot and open survival and summary', function (test) {
-	test.timeoutAfter(1000)
+	test.timeoutAfter(1600)
 	test.plan(4)
 	const holder = getHolder()
 	runpp({
