@@ -149,8 +149,8 @@ tape('\n', function (test) {
 	test.end()
 })
 
-tape('Render TermdbTest scatter plot and open survival and summary', function (test) {
-	test.timeoutAfter(1600)
+tape.only('Render TermdbTest scatter plot and open survival and summary', function (test) {
+	test.timeoutAfter(800)
 	test.plan(4)
 	const holder = getHolder()
 	runpp({
@@ -218,12 +218,16 @@ tape('Render TermdbTest scatter plot and open survival and summary', function (t
 
 		async function testOpenSurvivalPlot() {
 			const survivalTerm = await scatter.Inner.app.vocabApi.getterm('efs')
+			console.log(survivalTerm)
 			openPlot('survival', survivalTerm, tw, scatter.Inner.app)
-			test.equal(d3s.selectAll('.sja_errorbar').size(), 0, 'Should render survival plot without errors".')
+			const errorBar = d3s.selectAll('.sja_errorbar')
+			console.log(errorBar._groups[0])
+			test.equal(errorBar.size(), 0, 'Should render survival plot without errors".')
 		}
 
 		async function testOpenSummaryPlot() {
 			const genderTerm = await scatter.Inner.app.vocabApi.getterm('sex')
+			console.log(genderTerm)
 			openSummaryPlot(genderTerm, tw, scatter.Inner.app)
 			test.equal(d3s.selectAll('.sja_errorbar').size(), 0, 'Should render summary plot without errors".')
 		}
