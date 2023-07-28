@@ -1,25 +1,40 @@
-const serverconfig = require('./serverconfig')
-const fs = require('fs')
-const path = require('path')
-const child_process = require('child_process')
-const util = require('util')
-const execPromise = util.promisify(child_process.exec)
-const pkg = require('../package.json')
+import path from 'path'
+import fs from 'fs'
+import { exec } from 'child_process'
+import util from 'util'
+import pkg from '../../../package.json' assert { type: 'json' }
+import serverconfig from '../../src/serverconfig.js'
 
-export const versionDates = {
-	pkgver: pkg.version,
-	codedate: get_codedate(),
-	launchdate: Date(Date.now()).toString().split(' ').slice(0, 5).join(' ')
+const execPromise = util.promisify(exec)
+
+const docs = {
+	get: {
+		summary: 'Returns server health and build status.',
+		operationId: 'getHealth',
+		parameters: [],
+		responses: {
+			200: {
+				description: 'An object of server health parameters and build status',
+				schema: {
+					type: 'object',
+					items: {
+						//$ref: '#/definitions/health'
+					}
+				}
+			},
+			default: {
+				description: 'An error occurred',
+				schema: {
+					additionalProperties: true
+				}
+			}
+		}
+	}
 }
 
-function get_codedate() {
-	const date1 = fs.statSync(serverconfig.binpath + '/server.js').mtime
-	const date2 = (fs.existsSync('public/bin/proteinpaint.js') && fs.statSync('public/bin/proteinpaint.js').mtime) || 0
-	const date = date1 > date2 ? date1 : date2
-	return date.toDateString()
-}
+export default function (genomes) {
+	const operations = { GET }
 
-export function handle_healthcheck_closure(genomes) {
 	// only loaded once when this route handler is created
 	const revfile = path.join(process.cwd(), './rev.txt')
 	let rev = ''
@@ -27,7 +42,7 @@ export function handle_healthcheck_closure(genomes) {
 		rev = fs.readFileSync(revfile, { encoding: 'utf8' })
 	}
 
-	return async (req, res) => {
+	async function GET(req, res) {
 		try {
 			const health = await getStat(genomes, rev)
 			Object.assign(health, versionDates)
@@ -36,6 +51,23 @@ export function handle_healthcheck_closure(genomes) {
 			res.send({ error: e.message || e })
 		}
 	}
+
+	GET.apiDoc = docs.get
+
+	return operations
+}
+
+export const versionDates = Object.freeze({
+	pkgver: pkg.version,
+	codedate: get_codedate(),
+	launchdate: Date(Date.now()).toString().split(' ').slice(0, 5).join(' ')
+})
+
+function get_codedate() {
+	const date1 = fs.statSync(serverconfig.binpath + '/server.js').mtime
+	const date2 = (fs.existsSync('public/bin/proteinpaint.js') && fs.statSync('public/bin/proteinpaint.js').mtime) || 0
+	const date = date1 > date2 ? date1 : date2
+	return date.toDateString()
 }
 
 async function getStat(genomes, rev) {
