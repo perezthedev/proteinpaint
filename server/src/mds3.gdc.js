@@ -8,12 +8,15 @@ import { filter2GDCfilter } from './mds3.gdc.filter'
 /*
 GDC API
 
-****************** EXPORTED
 validate_variant2sample
 validate_query_snvindel_byrange
+	query_range2ssm
+	variables_range2ssm
 	makeSampleObj
 validate_query_snvindel_byisoform
 	snvindel_byisoform
+		isoform2ssm_query1_getvariant{}
+		isoform2ssm_query2_getcase{}
 	snvindel_addclass
 	decideSampleId
 validate_query_singleSampleMutation
@@ -34,6 +37,7 @@ get_termlst2size
 validate_m2csq
 validate_ssm2canonicalisoform
 getheaders
+mayMapRefseq2ensembl
 
 
 **************** route handlers
@@ -43,10 +47,6 @@ handle_filter2topGenes
 	get_filter2topGenes
 		mayAddCGC2filter
 
-**************** internal
-mayMapRefseq2ensembl
-isoform2ssm_query1_getvariant{}
-isoform2ssm_query2_getcase{}
 
 **************** api hosts
 for the pp docker instance running in gdc backend, the api host should be defined by environmental variable
@@ -99,7 +99,7 @@ export function validate_query_snvindel_byrange(ds) {
 	ds.queries.snvindel.byrange.get = async opts => {
 		const response = await got.post(apihostGraphql, {
 			headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, // xxx
-			body: JSON.stringify({ query: query_range2ssm, variables: variables_range2ssm(opts) })
+			body: JSON.stringify({ query: query_range2ssm_2, variables: variables_range2ssm(opts) })
 		})
 		let re
 		try {
@@ -131,11 +131,19 @@ export function validate_query_snvindel_byrange(ds) {
 				// c2: { node: {consequence} }
 				snvindel_addclass(m, (c || h.node.consequence.hits.edges[0]).node)
 			}
+			/*
 			if (h.node.occurrence.hits.edges) {
 				for (const c of h.node.occurrence.hits.edges) {
 					const sample = makeSampleObj(c.node.case, ds)
 					sample.sample_id = c.node.case.case_id
 					m.samples.push(sample)
+				}
+			}
+			*/
+			if (h.node.filteredOccurences) {
+				// { hits: { total: 3 } }
+				for (let i = 0; i < h.node.filteredOccurences.hits.total; i++) {
+					m.samples.push({})
 				}
 			}
 			mlst.push(m)
@@ -2134,6 +2142,51 @@ query list of variants by genomic range (of a gene/transcript)
 does not include info on individual tumors
 the "filter" name is hardcoded and used in app.js
 */
+const query_range2ssm_2 = `query range2variants($filters: FiltersArgument) {
+  explore {
+    ssms {
+      hits(first: 100000, filters: $filters) {
+        total
+        edges {
+          node {
+            ssm_id
+            chromosome
+            start_position
+            end_position
+            genomic_dna_change
+            reference_allele
+            tumor_allele
+            filteredOccurences: occurrence {
+              hits(first: 0, filters: $filters) {
+                total
+              }
+            }
+            consequence {
+              hits {
+                total
+                edges {
+                  node {
+                    transcript {
+                      transcript_id
+                      aa_change
+                      consequence_type
+                      is_canonical
+                      gene {
+                        symbol
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+
+// old version
 const query_range2ssm = `query range2variants($filters: FiltersArgument) {
   explore {
     ssms {
