@@ -99,7 +99,7 @@ export function validate_query_snvindel_byrange(ds) {
 	ds.queries.snvindel.byrange.get = async opts => {
 		const response = await got.post(apihostGraphql, {
 			headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, // xxx
-			body: JSON.stringify({ query: query_range2ssm, variables: variables_range2ssm(opts) })
+			body: JSON.stringify({ query: query_range2ssm2, variables: variables_range2ssm2(opts) })
 		})
 		let re
 		try {
@@ -107,7 +107,14 @@ export function validate_query_snvindel_byrange(ds) {
 		} catch (e) {
 			throw 'invalid JSON from GDC range2ssm'
 		}
+
 		if (!Array.isArray(re?.data?.explore?.ssms?.hits?.edges)) throw 'data.explore.ssms.hits.edges not array'
+		if (!Number.isInteger(re?.data?.explore?.filteredCases?.hits?.total))
+			throw 'data.explore.filteredCases.hits.total not integer'
+
+		/* BIG CATCH
+		there's no longer list of sample objects at each variant
+		*/
 		const mlst = []
 		for (const h of re.data.explore.ssms.hits.edges) {
 			const m = {
@@ -2141,6 +2148,55 @@ const isoform2ssm_query2_getcase = {
 	}
 }
 
+const query_range2ssm2 = `
+query range2variants($caseFilters: FiltersArgument, $ssmFilters: FiltersArgument) {
+  explore {
+		filteredCases: cases {
+			hits(first: 0, filters: $caseFilters) {
+				total
+			}
+		}
+    ssms {
+      hits(first: 100000, filters: $ssmFilters) {
+        total
+        edges {
+          node {
+            ssm_id
+            chromosome
+            start_position
+            end_position
+            genomic_dna_change
+            reference_allele
+            tumor_allele
+            filteredOccurences: occurrence {
+                hits(first: 0, filters: $ssmFilters) {
+                  total
+                }
+						}
+            consequence {
+              hits {
+                total
+                edges {
+                  node {
+                    transcript {
+                      transcript_id
+                      consequence_type
+                      is_canonical
+                      gene {
+                        symbol
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+
 /*
 GRAPHQL  query ssm by range
 
@@ -2231,6 +2287,137 @@ function variables_range2ssm(p) {
 	}
 	if (p.filterObj) {
 		f.filters.content.push(filter2GDCfilter(p.filterObj))
+	}
+	return f
+}
+
+function variables_range2ssm2(p) {
+	// p:{}
+	// .rglst[{chr/start/stop}]
+	// .set_id
+	if (!p.rglst) throw '.rglst missing'
+	const r = p.rglst[0]
+	if (!r) throw '.rglst[0] missing'
+	if (typeof r.chr != 'string') throw '.rglst[0].chr not string'
+	if (!Number.isInteger(r.start)) throw '.rglst[0].start not integer'
+	if (!Number.isInteger(r.stop)) throw '.rglst[0].stop not integer'
+	/*
+	const f = {
+		filters: {
+			op: 'and',
+			content: [
+				{ op: '=', content: { field: 'chromosome', value: [r.chr] } },
+				{ op: '>=', content: { field: 'start_position', value: [r.start] } },
+				{ op: '<=', content: { field: 'end_position', value: [r.stop] } }
+			]
+		}
+	}
+	*/
+
+	const f = {
+		caseFilters: {
+			op: 'and',
+			content: [
+				{
+					op: '=',
+					content: {
+						field: 'gene.ssm.chromosome',
+						value: [r.chr]
+					}
+				},
+				{
+					op: '>=',
+					content: {
+						field: 'gene.ssm.start_position',
+						value: [r.start]
+					}
+				},
+				{
+					op: '<=',
+					content: {
+						field: 'gene.ssm.end_position',
+						value: [r.stop]
+					}
+				}
+				/*
+      {
+        "op": "and",
+        "content": [
+          {
+            "op": "in",
+            "content": {
+              "field": "cases.demographic.gender",
+              "value": [
+                "female"
+              ]
+            }
+          }
+        ]
+      }
+	  */
+			]
+		},
+		ssmFilters: {
+			op: 'and',
+			content: [
+				{
+					op: '=',
+					content: {
+						field: 'chromosome',
+						value: [r.chr]
+					}
+				},
+				{
+					op: '>=',
+					content: {
+						field: 'start_position',
+						value: [r.start]
+					}
+				},
+				{
+					op: '<=',
+					content: {
+						field: 'end_position',
+						value: [r.stop]
+					}
+				}
+				/*
+      {
+        "op": "and",
+        "content": [
+          {
+            "op": "in",
+            "content": {
+              "field": "cases.demographic.gender",
+              "value": [
+                "female"
+              ]
+            }
+          }
+        ]
+      }
+	  */
+			]
+		}
+	}
+
+	/*
+	if (p.set_id) {
+		if (typeof p.set_id != 'string') throw '.set_id value not string'
+		f.filters.content.push({
+			op: 'in',
+			content: { field: 'cases.case_id', value: [p.set_id] }
+		})
+	}
+	*/
+	if (p.filter0) {
+		f.caseFilters.content.push(p.filter0)
+		f.ssmFilters.content.push(p.filter0)
+	}
+	if (p.filterObj) {
+		const t = filter2GDCfilter(p.filterObj)
+		f.caseFilters.content.push(t)
+		f.ssmFilters.content.push(t)
 	}
 	return f
 }
