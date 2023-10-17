@@ -74,16 +74,18 @@ async function showBinsMenu(self: NumericTermSettingInstance, div: any) {
 	try {
 		if (!self.vocabApi) throw `Missing .vocabApi{} [numeric.discrete showBinsMenu()]`
 		const d = await self.vocabApi.getViolinPlotData(
-			{
-				termid: self.term.id,
-				filter: self.filter,
-				svgw: self.num_obj.plot_size.width,
-				orientation: 'horizontal',
-				datasymbol: 'bean',
-				radius: 5,
-				strokeWidth: 0.2
-			},
-			self.opts.getBodyParams?.()
+			Object.assign(
+				{
+					termid: self.term.id,
+					filter: self.filter,
+					svgw: self.num_obj.plot_size.width,
+					orientation: 'horizontal',
+					datasymbol: 'bean',
+					radius: 5,
+					strokeWidth: 0.2
+				},
+				self.opts.getBodyParams?.() || {}
+			)
 		)
 		self.num_obj.density_data = convertViolinData(d)
 	} catch (err) {
