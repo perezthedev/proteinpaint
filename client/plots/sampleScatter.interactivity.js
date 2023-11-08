@@ -12,7 +12,7 @@ import roundValue from '#shared/roundValue'
 export function setInteractivity(self) {
 	self.mouseover = function (event, chart) {
 		if (!(event.target.tagName == 'path' && event.target.getAttribute('name') == 'serie')) {
-			//self.dom.tooltip.hide()//dont hide current tooltip if mouse moved away, may want to scroll
+			self.dom.tooltip.hide() //dont hide current tooltip if mouse moved away, may want to scroll
 			return
 		}
 		const s2 = event.target.__data__
