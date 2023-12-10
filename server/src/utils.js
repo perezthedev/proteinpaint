@@ -687,10 +687,6 @@ export async function cachedFetch(url, opts = {}, use = {}) {
 			cacheDir = path.join(extApiResponseDir, extApiCache[substr])
 		}
 	}
-
-	// assume that a non-relative url indicates an external API
-
-	if (!url.includes(':/')) throw `cannot use cachedFetch wuth a relative URL: ${url}`
 	const id =
 		cacheDir &&
 		crypto

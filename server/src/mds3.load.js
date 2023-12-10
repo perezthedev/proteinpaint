@@ -44,7 +44,7 @@ export function mds3_request_closure(genomes) {
 
 			may_validate_filters(q, ds)
 
-			const result = await load_driver(q, ds)
+			const result = await load_driver(q, ds, res)
 			res.send(result)
 		} catch (e) {
 			res.send({ error: e.message || e })
@@ -173,7 +173,7 @@ async function get_ds(q, genome) {
 	return ds
 }
 
-async function load_driver(q, ds) {
+async function load_driver(q, ds, res) {
 	// various bits of data to be appended as keys to result{}
 	// what other loaders can be if not in ds.queries?
 
@@ -272,7 +272,7 @@ async function load_driver(q, ds) {
 
 		// have data for multiple genes, run clustering
 		const t = new Date()
-		const clustering = await geneExpressionClustering(gene2sample2value, q, ds)
+		const clustering = await geneExpressionClustering(gene2sample2value, q, ds, res)
 		console.log('clustering done:', new Date() - t, 'ms')
 		return { clustering, byTermId }
 	}
@@ -433,7 +433,7 @@ function may_validate_filters(q, ds) {
 	}
 }
 
-async function geneExpressionClustering(data, q, ds) {
+async function geneExpressionClustering(data, q, ds, res) {
 	// get set of uniq sample names, to generate col_names dimension
 	const sampleSet = new Set()
 	for (const o of data.values()) {
@@ -452,7 +452,7 @@ async function geneExpressionClustering(data, q, ds) {
 	if (ds.queries.geneExpression.valueIsTransformed) inputData.valueIsTransformed = true // to not to do scale() in R
 
 	// compose "data{}" into a matrix
-	//console.log('data:', data)
+	console.log('data:', data)
 	for (const [gene, o] of data) {
 		inputData.row_names.push(gene)
 		const row = []
@@ -472,14 +472,16 @@ async function geneExpressionClustering(data, q, ds) {
         inputData.matrix.push(row)
         */
 
-	//console.log('inputData.matrix:', inputData.matrix.length, inputData.matrix[0].length)
-	//console.log('input_data:', inputData)
-	//await write_file('test.json', JSON.stringify(inputData))
+	console.log('inputData.matrix:', inputData.matrix.length, inputData.matrix[0].length)
+	console.log('input_data:', inputData)
+	await write_file('test.json', JSON.stringify(inputData))
 
 	const Rinputfile = path.join(serverconfig.cachedir, Math.random().toString() + '.json')
 	await write_file(Rinputfile, JSON.stringify(inputData))
 	const Routput = await run_clustering(path.join(serverconfig.binpath, 'utils', 'fastclust.R'), [Rinputfile])
-	fs.unlink(Rinputfile, () => {})
+	const Routputfile = path.join(serverconfig.cachedir, 'Routput.txt')
+	await write_file(Routputfile, Routput.join('\n'))
+	//fs.unlink(Rinputfile, () => {})
 	//const r_output_lines = Routput.trim().split('\n')
 	//console.log('r_output_lines:', r_output_lines)
 
@@ -551,7 +553,17 @@ async function geneExpressionClustering(data, q, ds) {
 	//console.log('col_coordinates:', col_coordinates)
 
 	let row_output = await parseclust(row_coordinates, row_names_index)
+	console.log(row_output)
 	let col_output = await parseclust(col_coordinates, col_names_index)
+	console.log(col_output)
+
+	res.send({
+		Routput,
+		row_output,
+		col_output
+	})
+
+	throw `forced early exit`
 
 	// Converting the 1D array to 2D array column-wise
 	let output_matrix = []
@@ -624,19 +636,19 @@ async function run_clustering(Rscript, args = []) {
 		sp.stderr.on('data', data => stderr.push(data))
 		sp.on('error', err => reject(err))
 		sp.on('close', code => {
-			//if (code !== 0) {
-			//	// handle non-zero exit status
-			//	let errmsg = `R process exited with non-zero status code=${code}`
-			//	if (stdout.length > 0) errmsg += `\nR stdout: ${stdout.join('').trim()}`
-			//	if (stderr.length > 0) errmsg += `\nR stderr: ${stderr.join('').trim()}`
-			//	reject(errmsg)
-			//}
-			//if (stderr.length > 0) {
-			//	// handle R stderr
-			//	const err = stderr.join('').trim()
-			//	const errmsg = `R process emitted standard error\nR stderr: ${err}`
-			//	reject(errmsg)
-			//}
+			if (code !== 0) {
+				// handle non-zero exit status
+				let errmsg = `R process exited with non-zero status code=${code}`
+				if (stdout.length > 0) errmsg += `\nR stdout: ${stdout.join('').trim()}`
+				if (stderr.length > 0) errmsg += `\nR stderr: ${stderr.join('').trim()}`
+				reject(errmsg)
+			}
+			if (stderr.length > 0) {
+				// handle R stderr
+				const err = stderr.join('').trim()
+				const errmsg = `R process emitted standard error\nR stderr: ${err}`
+				reject(errmsg)
+			}
 			const out = stdout.join('').trim().split('\n')
 			resolve(out)
 		})
