@@ -12,7 +12,7 @@ if [[ "$MODE" == "-w" ]]; then
   ./build2.sh -r "ghcr.io/stjude/" server
   TAG="$(node -p "require('./server/package.json').version")"  
   docker push ghcr.io/stjude/ppserver:$TAG-$HASH
-  docker push ghcr.io/stjude/ppserver:latest
+  docker push ghcr.io/stjude/ppserver:feature_topgene_bgzip_test
 fi
 
 ./version.sh full
@@ -20,7 +20,7 @@ if [[ "$MODE" == "-w" ]]; then
   ./build2.sh -r "ghcr.io/stjude/" full
   TAG="$(node -p "require('./full/package.json').version")"
   docker push ghcr.io/stjude/ppfull:$TAG-$HASH
-  docker push ghcr.io/stjude/ppfull:latest
+  docker push ghcr.io/stjude/ppfull:feature_topgene_bgzip_test
 fi
 
 if [[ "$MODE" == "-w" ]]; then
