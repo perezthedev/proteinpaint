@@ -594,6 +594,7 @@ function renderCustomBinInputs(self, tablediv: any) {
 		}
 		// update self.q.lst and render bin lines only if bin boundry changed
 		const q = self.numqByTermIdModeType[self.term.id].discrete[self.q.type!]
+		if (q.type != self.q.type) console.log(`self.q.type=${self.q.type} but numqByTermIdModeType returns ${q.type}`)
 		if (self.q.hiddenValues!) q.hiddenValues = self.q.hiddenValues!
 		if (binsChanged(data, q.lst)) {
 			q.lst = data
