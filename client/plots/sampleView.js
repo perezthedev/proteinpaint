@@ -708,7 +708,7 @@ export function searchSampleInput(holder, samplesData, callback, keyUpCallback) 
 		.attr('list', 'sampleDatalist')
 		.property('autocomplete', 'off')
 		.attr('placeholder', sampleName)
-		.style('width', '400px')
+		.style('width', '300px')
 	const datalist = holder.append('datalist').attr('id', 'sampleDatalist')
 	addOptions(allSamples)
 	input.on('keyup', e => {

@@ -553,6 +553,7 @@ export function setRenderers(self) {
 		// icon_functions['help'](helpDiv, {
 		// 	handler: () => window.open('https://github.com/stjude/proteinpaint/wiki/Scatter-plot', '_blank')
 		// })
+		const searchDiv = toolsDiv.insert('div').style('display', display).style('margin', '20px')
 
 		const homeDiv = toolsDiv
 			.insert('div')
@@ -572,7 +573,6 @@ export function setRenderers(self) {
 			.style('margin', '20px')
 			.attr('name', 'sjpp-zoom-out-btn') //For unit tests
 		icon_functions['zoomOut'](zoomOutDiv, { handler: zoomOut })
-		const searchDiv = toolsDiv.insert('div').style('display', display).style('margin', '20px')
 		const lassoDiv = toolsDiv.insert('div').style('display', display).style('margin', '20px')
 		if (!(self.is2DLarge || self.is3D)) {
 			icon_functions['search'](searchDiv, { handler: e => self.searchSample(e) })
@@ -696,7 +696,7 @@ export function setRenderers(self) {
 		let title0 = self.config.term0
 			? `${chart.id}, n=${chart.cohortSamples.length}`
 			: `${chart.cohortSamples.length} ${self.config.sampleType ? self.config.sampleType + 's' : 'samples'}`
-		if (self.filterSampleStr) title0 += `, search = ${self.filterSampleStr}`
+		if (self.filterSampleStr) title0 += `, searching ${self.filterSampleStr}`
 		colorG.append('text').attr('x', 0).attr('y', offsetY).text(title0).style('font-weight', 'bold')
 		offsetY += step + 10
 		if (self.config.colorTW || self.config.colorColumn) {
